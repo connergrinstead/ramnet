@@ -12,7 +12,7 @@
 #define SERVER_BACKLOG 1U
 
 int64_t create_tcp_listener(char * p_ip, char * p_port);
-
+int64_t create_udp_listener(char * p_ip, char * p_port);
 
 #endif /* SERVER_H */
 
