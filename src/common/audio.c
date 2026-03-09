@@ -136,7 +136,8 @@ void handle_audio(const uint8_t *packet, size_t len)
 
     size_t space = (w >= r) ? (BUFFER_SAMPLES - (w - r)) : (r - w);
     if(samples > space)
-        samples = space;
+        printf("Overrun. Skipping ahead.\n");
+        //samples = space;
 
     for(size_t i=0;i<samples;i++)
     {
