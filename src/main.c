@@ -14,6 +14,7 @@
 #include <stdbool.h>
 
 #include "../include/common/server.h"
+#include "../include/common/audio.h"
 
 
 #define IP_ADDR "0.0.0.0"
@@ -83,17 +84,19 @@ bucket_thread(void * p_arg)
 {
     int64_t bucket_fd = *(int64_t *)p_arg;
 
-    char p_buffer[32] = { 0 };
+    char p_buffer[4096] = { 0 };
     ssize_t buffer_len = -1;
 
     struct sockaddr_in client_addr = { 0 };
     socklen_t addr_len = sizeof(client_addr);
 
+    audio_init();
+
     printf("[\033[31m*\033[0m] Thread creation: bucket_thread(%zu)\n", bucket_fd);
 
     while (!gb_shutdown && gb_connected)
     {
-        buffer_len = recvfrom(bucket_fd, p_buffer, 31, 0,
+        buffer_len = recvfrom(bucket_fd, p_buffer, sizeof(p_buffer), 0,
                               (struct sockaddr *)&client_addr, &addr_len);
 
         if (buffer_len < 0)
@@ -102,9 +105,10 @@ bucket_thread(void * p_arg)
             continue;
         }
 
-        p_buffer[buffer_len] = 0;
-        printf("Received %zu bytes into bucket:\n%s\n", buffer_len, p_buffer);
+        handle_audio(p_buffer, buffer_len);
     }
+
+    audio_shutdown();
 }
 
 

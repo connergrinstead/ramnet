@@ -1,4 +1,7 @@
 /.vscode
+/client/audioenv
+/client/*.mp3
+/client/*.wav
 /bin
 /build
 /CMakeFiles
