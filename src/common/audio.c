@@ -157,7 +157,7 @@ void handle_audio(const uint8_t *packet, size_t len)
         size_t over = samples - space;
         printf("Overrun. Skipping ahead by %zu samples.\n", over);
 
-        r += over;
+        r += over + FRAMES_PER_BUFFER * CHANNELS;
         atomic_store_explicit(&read_index, r, memory_order_release);
     }
 
