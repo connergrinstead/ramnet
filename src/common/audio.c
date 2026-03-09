@@ -60,7 +60,10 @@ static int pa_callback(const void *input,
         }
     }
 
-    atomic_store_explicit(&read_index, r, memory_order_release);
+    if (available > 1024)
+    {
+        atomic_store_explicit(&read_index, r, memory_order_release);
+    }
     return paContinue;
 }
 
