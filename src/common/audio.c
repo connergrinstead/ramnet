@@ -13,6 +13,8 @@
 #define BUFFER_FRAMES (SAMPLE_RATE * 4)
 #define BUFFER_SAMPLES (BUFFER_FRAMES * CHANNELS)
 
+static atomic_bool stream_playing = ATOMIC_VAR_INIT(false);
+
 static int16_t ring_buffer[BUFFER_SAMPLES];
 
 static atomic_size_t write_index = 0;
@@ -48,22 +50,34 @@ static int pa_callback(const void *input,
     size_t available = (w >= r) ? (w - r) : (BUFFER_SAMPLES + w - r);
     size_t samples_needed = frameCount * CHANNELS;
 
-    for(size_t i = 0; i < samples_needed; i++)
+    // Start playback only if enough frames are preloaded
+    if (!atomic_load(&stream_playing) && available >= PRELOAD_SAMPLES)
     {
-        if (available <= 1024)
-            out[i] = 0; // underrun silence
+        atomic_store(&stream_playing, true);
+    }
+
+    for (size_t i = 0; i < samples_needed; i++)
+    {
+        if (!atomic_load(&stream_playing) || i >= available)
+        {
+            out[i] = 0; // silence until preloaded or underrun
+        }
         else
         {
             out[i] = ring_buffer[r % BUFFER_SAMPLES];
             r++;
-            available--;
         }
     }
 
-    if (available > 1024)
+    atomic_store_explicit(&read_index, r, memory_order_release);
+
+    // Pause playback if buffer is empty after reading
+    available = (w >= r) ? (w - r) : (BUFFER_SAMPLES + w - r);
+    if (atomic_load(&stream_playing) && available == 0)
     {
-        atomic_store_explicit(&read_index, r, memory_order_release);
+        atomic_store(&stream_playing, false);
     }
+
     return paContinue;
 }
 
