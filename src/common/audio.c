@@ -135,33 +135,43 @@ void audio_shutdown(void)
 // ---- Handle incoming audio packets ----
 void handle_audio(const uint8_t *packet, size_t len)
 {
-    if(len <= 8) return;
+    if (len <= 8) return;
 
     const uint8_t *pcm_bytes = packet + 8;
     size_t pcm_bytes_len = len - 8;
 
-    if(pcm_bytes_len % 2 != 0)
+    if (pcm_bytes_len % 2 != 0)
         return; // must be full samples
 
     size_t samples = pcm_bytes_len / 2;
 
-    size_t w = atomic_load(&write_index);
-    size_t r = atomic_load(&read_index);
+    size_t w = atomic_load_explicit(&write_index, memory_order_relaxed);
+    size_t r = atomic_load_explicit(&read_index, memory_order_acquire);
 
-    size_t space = (w >= r) ? (BUFFER_SAMPLES - (w - r)) : (r - w);
-    if(samples > space)
-        printf("Overrun. Skipping ahead.\n");
-        //samples = space;
+    size_t available = (w >= r) ? (w - r) : (BUFFER_SAMPLES + w - r);
+    size_t space = BUFFER_SAMPLES - available;
 
-    for(size_t i=0;i<samples;i++)
+    // Handle overrun: drop oldest samples
+    if (samples > space)
+    {
+        size_t over = samples - space;
+        printf("Overrun. Skipping ahead by %zu samples.\n", over);
+
+        r += over;
+        atomic_store_explicit(&read_index, r, memory_order_release);
+    }
+
+    // Write new samples
+    for (size_t i = 0; i < samples; i++)
     {
         int16_t sample;
-        memcpy(&sample, pcm_bytes + i*2, 2);
+        memcpy(&sample, pcm_bytes + i * 2, 2);
+
         ring_buffer[w % BUFFER_SAMPLES] = sample;
         w++;
     }
 
-    atomic_store(&write_index, w);
+    atomic_store_explicit(&write_index, w, memory_order_release);
 }
 
 // ---- Wait until buffer has enough data to avoid initial underrun ----
