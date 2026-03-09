@@ -50,7 +50,7 @@ static int pa_callback(const void *input,
 
     for(size_t i = 0; i < samples_needed; i++)
     {
-        if(available == 0)
+        if (available <= 1024)
             out[i] = 0; // underrun silence
         else
         {
